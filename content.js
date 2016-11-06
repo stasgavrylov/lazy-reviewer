@@ -1,8 +1,10 @@
-// const $sortingMenu = document.querySelector('.issues-filters .dropdown-menu-sort')
-// const $sortingList = $sortingMenu.firstElementChild
-// const $sortingButton = $sortingMenu.previousElementSibling
+function init(url) {
+  const $sortingMenu = document.querySelector('.issues-filters .dropdown-menu-sort')
+  const $sortingList = $sortingMenu.firstElementChild
+  const $sortingButton = $sortingMenu.previousElementSibling
 
-function insertLinks() {
+  console.log(url.split('/'))
+
   const $link = document.createElement('a')
   $link.textContent = 'Less lines'
   $link.href = '#'
@@ -96,4 +98,6 @@ function occurrences(string, subString) {
  */
 
 // $sortingList.addEventListener('click', insertLinks)
-// insertLinks()
+chrome.runtime.onMessage.addListener(function({ url }, sender) {
+  init(url);
+});

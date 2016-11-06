@@ -5,6 +5,7 @@
   "description": "This extension adds an option to sort merge requests by the size of their changes",
   "version": "1.0",
   "permissions": [
+    "tabs",
     "webNavigation",
     "https://gitlab.railsreactor.com/*"
   ],
