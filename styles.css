@@ -1,7 +1,32 @@
-.mrs-added {
-  color: #55a532;
+:root {
+  --margin: 3px;
 }
 
-.mrs-removed {
+.mrs-changes {
+  margin-left: var(--margin);
+}
+
+.mrs-changes::before {
+  content: '[';
+}
+.mrs-changes::after {
+  content: ']';
+}
+
+.mrs-github-added {
+  color: #55a532;
+  margin-right: var(--margin);
+}
+
+.mrs-github-removed {
   color: #bd2c00;
+}
+
+.mrs-gitlab-added {
+  color: #4a2;
+  margin-right: var(--margin);
+}
+
+.mrs-gitlab-removed {
+  color: #d12f19;
 }

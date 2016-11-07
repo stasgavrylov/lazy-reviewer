@@ -16,12 +16,12 @@
   "content_scripts": [
     {
       "matches": [
-        "https://gitlab.railsreactor.com/*",
-        "https://gitlab.railsreactor.com/*/merge_requests*",
+        "https://gitlab.railsreactor.com/*/merge_requests",
+        "https://gitlab.railsreactor.com/*/merge_requests/",
         "https://gitlab.railsreactor.com/*/merge_requests?*"
       ],
       "exclude_matches": [
-        "https://gitlab.railsreactor.com/*/merge_requests/*"
+        "https://gitlab.railsreactor.com/*/merge_requests/?*"
       ],
       "js": ["content.js"],
       "css": ["styles.css"],

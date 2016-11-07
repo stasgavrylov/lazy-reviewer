@@ -7,6 +7,10 @@ const hostFilters = { url: [
     hostContains: 'gitlab.',
     urlSuffix: '/merge_requests'
   },
+  {
+    hostContains: 'gitlab.',
+    urlSuffix: '/merge_requests/'
+  },
 ]}
 
 chrome.webNavigation.onHistoryStateUpdated.addListener(function(data) {
