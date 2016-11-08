@@ -30,3 +30,8 @@
 .mrs-gitlab-removed {
   color: #d12f19;
 }
+
+.mrs-sort-link[disabled] {
+  color: #ddd;
+  pointer-events: none;
+}

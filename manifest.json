@@ -5,9 +5,10 @@
   "description": "This extension adds an option to sort merge requests by the size of their changes",
   "version": "1.0",
   "permissions": [
+    "alarms",
     "tabs",
-    "webNavigation",
-    "https://gitlab.railsreactor.com/*"
+    "storage",
+    "webNavigation"
   ],
   "background": {
     "persistent": false,
@@ -16,12 +17,8 @@
   "content_scripts": [
     {
       "matches": [
-        "https://gitlab.railsreactor.com/*/merge_requests",
-        "https://gitlab.railsreactor.com/*/merge_requests/",
-        "https://gitlab.railsreactor.com/*/merge_requests?*"
-      ],
-      "exclude_matches": [
-        "https://gitlab.railsreactor.com/*/merge_requests/?*"
+        "http://*/*",
+        "https://*/*"
       ],
       "js": ["content.js"],
       "css": ["styles.css"],

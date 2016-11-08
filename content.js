@@ -1,28 +1,14 @@
 const PRIVATE_TOKEN = '7-k3Pak8M6UJuayNrx3i'
 
+const listOfMergeRequests = new Map
+const setOfChanges = new Set
+
 function init(url) {
-  const { pathname, searchParams } = new URL(url)
+  const { origin, pathname, searchParams } = new URL(url)
   const [ page, projectName, ...rest ] = pathname.split('/').filter(e => e).reverse()
 
-  // const $sortingMenu = $('.issues-filters .dropdown-menu-sort')
-  // const $sortingList = $sortingMenu.firstElementChild
-  // const $sortingButton = $sortingMenu.previousElementSibling
-
-
-  // const $link = document.createElement('a')
-  // $link.textContent = 'Less lines'
-  // $link.href = '#'
-
-  // $link.addEventListener('click', (e) => {
-  //   e.preventDefault()
-  //   $sortingButton.childNodes[2].textContent = $link.textContent
-  // })
-
-  // $sortingList.prepend($link)
-  // $sortingList.addEventListener('click', insertLinks)
-
-
-  const headers = new Headers()
+  // Fetch merge requests info and diff description to MR list
+  const headers = new Headers
         headers.append('PRIVATE-TOKEN', PRIVATE_TOKEN)
   const options = {
     method: 'GET',
@@ -31,37 +17,94 @@ function init(url) {
     headers,
   }
 
-  fetch('https://gitlab.railsreactor.com/api/v3/projects/', options)
+  fetch(`${origin}/api/v3/projects/`, options)
+  .then(data => data.json())
+  .then(projects => {
+    const projectId = projects.find(proj => proj.name == projectName).id
+    fetch(
+      `${origin}/api/v3/projects/${projectId}/merge_requests?state=opened`,
+      options
+    )
     .then(data => data.json())
-    .then(projects => {
-      const projectId = projects.find(proj => proj.name == projectName).id
-      fetch(
-        `https://gitlab.railsreactor.com/api/v3/projects/${projectId}/merge_requests?state=opened`,
+    .then(json => {
+      const allChanges = json.map(({ id, iid }) => fetch(
+        `${origin}/api/v3/projects/${projectId}/merge_requests/${id}/changes`,
         options
       )
       .then(data => data.json())
-      .then(json => {
-        const allChanges = json.map(({ id, iid }) => fetch(
-          `https://gitlab.railsreactor.com/api/v3/projects/${projectId}/merge_requests/${id}/changes`,
-          options
-        )
-        .then(data => data.json())
-        .then(({ changes }) => getMergeUpdates(changes, iid)));
+      .then(({ changes }) => getMergeUpdates(changes, iid)));
 
-        Promise.all(allChanges)
-          .catch(function(err) {
-              console.error('Failed to get merge request changes:', err)
-              return allChanges
-          })
-          .then(changes => {
-            changes.forEach(({ id, added, removed }) => {
-              const $mergeLink = $(`a[href$="/${id}"]`)
-              $mergeLink.append(buildDiffMarkup(added, removed))
-          })
+      Promise.all(allChanges)
+      .catch(function(err) {
+          console.error('Failed to get merge request changes:', err)
+          return allChanges
+      })
+      .then(changes => {
+        changes.forEach(({ id, added, removed }) => {
+          const $mergeRequestLink = $(`a[href$="/${id}"]`)
+          $mergeRequestLink && $mergeRequestLink.append(buildDiffMarkup(added, removed))
+
+          // Save corresponding list item node for later use
+          // TODO: Allow several nodes with equal total changes
+          const total = added + removed
+          listOfMergeRequests.set(total, $mergeRequestLink.closest('.merge-request'))
+          setOfChanges.add(total)
         })
+
+        for (let $link of $$('.mrs-sort-link')) { $link.removeAttribute('disabled') }
       })
     })
-    .catch(err => { console.error('Failed to fetch projects list:', err) })
+  })
+  .catch(err => { console.error('Failed to fetch projects list:', err) })
+
+  insertSortLinks()
+}
+
+function insertSortLinks() {
+  const $sortingMenu = $('.issues-filters .dropdown-menu-sort')
+  const $sortingList = $sortingMenu.firstElementChild
+  const $sortingButton = $sortingMenu.previousElementSibling
+
+  function changeCurrentSort(e) {
+    e.preventDefault()
+    $sortingButton.childNodes[2].textContent = this.textContent
+    sortMergeRequests(this.dataset.direction)
+  }
+
+  const $lessLink = create('a', 'Less changes', {
+    href: '!#',
+    disabled: true,
+    class: 'mrs-sort-link',
+    'data-direction': 'asc',
+  })
+  const $moreLink = create('a', 'More changes', {
+    href: '!#',
+    disabled: true,
+    class: 'mrs-sort-link',
+    'data-direction': 'desc',
+  })
+
+  $lessLink.addEventListener('click', changeCurrentSort)
+  $moreLink.addEventListener('click', changeCurrentSort)
+
+  $sortingList.append($lessLink, $moreLink);
+}
+
+function sortMergeRequests(dir) {
+  const $mergeRequests = new DocumentFragment
+  const $list = $('.mr-list')
+  const $newList = $list.cloneNode()
+
+  ![ ...setOfChanges ]
+    .sort((a, b) => dir === 'asc' ? a - b : b - a)
+    .forEach(count => {
+      $mergeRequests.append(
+        listOfMergeRequests.get(count).cloneNode(true)
+      )
+    })
+
+  $newList.append($mergeRequests)
+  $list.replaceWith($newList)
 }
 
 
@@ -71,12 +114,26 @@ function init(url) {
  */
 
 var $ = document.querySelector.bind(document)
+var $$ = document.querySelectorAll.bind(document)
+
+// Shorthands for sessionStorage
+function sSet(key, value) {
+  sessionStorage.setItem(key, JSON.stringify(value))
+}
+function sGet(key) {
+  const value = sessionStorage.getItem(key)
+  return JSON.parse(value)
+}
 
 // Simple node building
-function create(tag, content, className) {
+function create(tag, content, options) {
   const $el = document.createElement(tag)
   $el.textContent = content
-  $el.className = className
+
+  Object.entries(options).forEach(([key, value]) => {
+    $el.setAttribute(key, value)
+  });
+
   return $el
 }
 
@@ -100,9 +157,9 @@ function getMergeUpdates(changes, id) {
 function buildDiffMarkup(added, removed) {
   const $f = new DocumentFragment
 
-  const $c = create('span', '', 'mrs-changes')
-  const $added = create('span', `+${added}`, 'mrs-gitlab-added')
-  const $removed = create('span', `-${removed}`, 'mrs-gitlab-removed')
+  const $c = create('span', '', { class: 'mrs-changes' })
+  const $added = create('span', `+${added}`, { class: 'mrs-gitlab-added' })
+  const $removed = create('span', `-${removed}`, { class: 'mrs-gitlab-removed' })
 
   $c.append($added, $removed)
   $f.append($c)
@@ -111,23 +168,22 @@ function buildDiffMarkup(added, removed) {
 
 // Calculate number of added and removed lines
 function occurrences(string, subString) {
-  var n = 0, pos = 0, step = subString.length;
+  var n = 0, pos = 0, step = subString.length
 
   while (true) {
-    pos = string.indexOf(subString, pos);
+    pos = string.indexOf(subString, pos)
     if (pos >= 0) {
-        ++n;
-        pos += step;
+        ++n
+        pos += step
     }
-    else break;
+    else break
   }
-  return n;
+  return n
 }
 
 /*
  * Initialization
  */
-
 chrome.runtime.onMessage.addListener(function({ url }, sender) {
-  init(url);
-});
+  chrome.storage.local.set({ initialized: true }, () => init(url))
+})
