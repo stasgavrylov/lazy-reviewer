@@ -23,5 +23,9 @@
       "css": ["styles.css"],
       "run_at": "document_end"
     }
-  ]
+  ],
+  "browser_action": {
+    "default_popup": "popup.html",
+    "default_title": "Add private API key"
+  }
 }

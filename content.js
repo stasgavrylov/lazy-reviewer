@@ -1,9 +1,17 @@
-const PRIVATE_TOKEN = '7-k3Pak8M6UJuayNrx3i'
 var listOfMRs, setOfChanges, setOfIds
 
-function init(url) {
+function init(url, privateKey) {
   const { origin, pathname, searchParams } = new URL(url)
   const [ page, projectName, ...rest ] = pathname.split('/').filter(e => e).reverse()
+
+  // If user hasn't set his API key yet, prompt once again or shut down.
+  if (!privateKey) {
+    privateKey = prompt(`You haven't provided ${origin} API key yet.`)
+    if (!privateKey) {
+      console.warn('No API key found for this host. LazyReviewer will not run.')
+      return
+    }
+  }
 
   listOfMRs = new Map
   setOfChanges = new Set
@@ -11,7 +19,7 @@ function init(url) {
 
   // Fetch merge requests info and diff description to MR list
   const headers = new Headers
-        headers.append('PRIVATE-TOKEN', PRIVATE_TOKEN)
+        headers.append('PRIVATE-TOKEN', privateKey)
   const options = {
     method: 'GET',
     mode: 'cors',
@@ -20,7 +28,11 @@ function init(url) {
   }
 
   fetch(`${origin}/api/v3/projects/`, options)
-  .then(data => data.json())
+  .then(data => {
+    if (data.status !== 200) throw new Error(`Server responded with status ${data.status}`)
+
+    return data.json()
+  })
   .then(projects => {
     const projectId = projects.find(proj => proj.name == projectName).id
     fetch(
@@ -34,7 +46,7 @@ function init(url) {
         options
       )
       .then(data => data.json())
-      .then(({ changes }) => getMergeUpdates(changes, iid)));
+      .then(({ changes }) => getMergeUpdates(changes, iid)))
 
       Promise.all(allChanges)
       .catch(function(err) {
@@ -98,7 +110,7 @@ function insertSortLinks() {
   $lessLink.addEventListener('click', changeCurrentSort)
   $moreLink.addEventListener('click', changeCurrentSort)
 
-  $sortingList.append($lessLink, $moreLink);
+  $sortingList.append($lessLink, $moreLink)
 }
 
 function sortMergeRequests(dir) {
@@ -137,8 +149,8 @@ function sortMergeRequests(dir) {
  * Utils
  */
 
-var $ = document.querySelector.bind(document)
-var $$ = document.querySelectorAll.bind(document)
+const $ = document.querySelector.bind(document)
+const $$ = document.querySelectorAll.bind(document)
 
 // Simple node building
 function create(tag, content, options) {
@@ -147,7 +159,7 @@ function create(tag, content, options) {
 
   Object.entries(options).forEach(([key, value]) => {
     $el.setAttribute(key, value)
-  });
+  })
 
   return $el
 }
@@ -200,5 +212,10 @@ function occurrences(string, subString) {
  * Initialization
  */
 chrome.runtime.onMessage.addListener(function({ url }, sender) {
-  chrome.storage.local.set({ initialized: true }, () => init(url))
+  chrome.storage.local.set({ initialized: true }, function() {
+    const { host } = new URL(url)
+    chrome.storage.local.get(host, function({ [host]: key }) {
+      init(url, key)
+    })
+  })
 })
