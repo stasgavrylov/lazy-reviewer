@@ -1,11 +1,13 @@
 const PRIVATE_TOKEN = '7-k3Pak8M6UJuayNrx3i'
-
-const listOfMRs = new Map
-const setOfChanges = new Set
+var listOfMRs, setOfChanges, setOfIds
 
 function init(url) {
   const { origin, pathname, searchParams } = new URL(url)
   const [ page, projectName, ...rest ] = pathname.split('/').filter(e => e).reverse()
+
+  listOfMRs = new Map
+  setOfChanges = new Set
+  setOfIds = new Set
 
   // Fetch merge requests info and diff description to MR list
   const headers = new Headers
@@ -41,8 +43,11 @@ function init(url) {
       })
       .then(changes => {
         changes.forEach(({ id, added, removed }) => {
+          if (setOfIds.has(id)) return
+
           const $mrLink = $(`a[href$="merge_requests/${id}"]`)
           if (!$mrLink) return
+
           // Add [+ -] changes to MR link
           $mrLink.append(buildDiffMarkup(added, removed))
 
@@ -54,6 +59,7 @@ function init(url) {
 
           listOfMRs.set(total, [ ...mrArray, { node: $mrListItem, id } ])
           setOfChanges.add(total)
+          setOfIds.add(id)
         })
 
         for (let $link of $$('.mrs-sort-link')) { $link.removeAttribute('disabled') }
@@ -101,15 +107,26 @@ function sortMergeRequests(dir) {
   const $newList = $list.cloneNode()
 
   // If user has filtered his MRs somehow
-  var filtered = $list.children.length < setOfChanges.size
-  console.log('$list', $list);
+  const filtered = $list.children.length < setOfChanges.size
+  const filteredIds = filtered &&
+    [ ...$list.querySelectorAll('.merge-request-title-text > a') ]
+      .map(node => +node.href.split('/').pop())
 
   ![ ...setOfChanges ]
     .sort((a, b) => dir === 'asc' ? a - b : b - a)
     .forEach(count => {
-      $mergeRequests.append( ...listOfMRs.get(count).map(({ node }) => node.cloneNode(true)) )
-    })
+      const items = listOfMRs.get(count)
+        .map(({ node, id }) => {
+          if (filtered) {
+            return filteredIds.includes(id) ? node.cloneNode(true) : null
+          }
 
+          return node.cloneNode(true)
+        })
+        .filter(node => node)
+
+      $mergeRequests.append( ...items )
+    })
   $newList.append($mergeRequests)
   $list.replaceWith($newList)
 }
