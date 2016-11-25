@@ -1,6 +1,6 @@
 const PRIVATE_TOKEN = '7-k3Pak8M6UJuayNrx3i'
 
-const listOfMergeRequests = new Map
+const listOfMRs = new Map
 const setOfChanges = new Set
 
 function init(url) {
@@ -41,13 +41,18 @@ function init(url) {
       })
       .then(changes => {
         changes.forEach(({ id, added, removed }) => {
-          const $mergeRequestLink = $(`a[href$="/${id}"]`)
-          $mergeRequestLink && $mergeRequestLink.append(buildDiffMarkup(added, removed))
+          const $mrLink = $(`a[href$="/${id}"]`)
+          if (!$mrLink) return
+          // Add [+ -] changes to MR link
+          $mrLink.append(buildDiffMarkup(added, removed))
 
-          // Save corresponding list item node for later use
-          // TODO: Allow several nodes with equal total changes
+          // Save corresponding list item node for sorting
+          const $mrListItem = $mrLink.closest('.merge-request')
           const total = added + removed
-          listOfMergeRequests.set(total, $mergeRequestLink.closest('.merge-request'))
+
+          const mrArray = listOfMRs.has(total) ? listOfMRs.get(total) : []
+
+          listOfMRs.set(total, [ ...mrArray, $mrListItem ])
           setOfChanges.add(total)
         })
 
@@ -98,9 +103,7 @@ function sortMergeRequests(dir) {
   ![ ...setOfChanges ]
     .sort((a, b) => dir === 'asc' ? a - b : b - a)
     .forEach(count => {
-      $mergeRequests.append(
-        listOfMergeRequests.get(count).cloneNode(true)
-      )
+      $mergeRequests.append( ...listOfMRs.get(count).map(node => node.cloneNode(true)) )
     })
 
   $newList.append($mergeRequests)
@@ -115,15 +118,6 @@ function sortMergeRequests(dir) {
 
 var $ = document.querySelector.bind(document)
 var $$ = document.querySelectorAll.bind(document)
-
-// Shorthands for sessionStorage
-function sSet(key, value) {
-  sessionStorage.setItem(key, JSON.stringify(value))
-}
-function sGet(key) {
-  const value = sessionStorage.getItem(key)
-  return JSON.parse(value)
-}
 
 // Simple node building
 function create(tag, content, options) {
