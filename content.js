@@ -41,7 +41,7 @@ function init(url) {
       })
       .then(changes => {
         changes.forEach(({ id, added, removed }) => {
-          const $mrLink = $(`a[href$="/${id}"]`)
+          const $mrLink = $(`a[href$="merge_requests/${id}"]`)
           if (!$mrLink) return
           // Add [+ -] changes to MR link
           $mrLink.append(buildDiffMarkup(added, removed))
