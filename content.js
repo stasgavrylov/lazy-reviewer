@@ -52,7 +52,7 @@ function init(url) {
 
           const mrArray = listOfMRs.has(total) ? listOfMRs.get(total) : []
 
-          listOfMRs.set(total, [ ...mrArray, $mrListItem ])
+          listOfMRs.set(total, [ ...mrArray, { node: $mrListItem, id } ])
           setOfChanges.add(total)
         })
 
@@ -100,10 +100,14 @@ function sortMergeRequests(dir) {
   const $list = $('.mr-list')
   const $newList = $list.cloneNode()
 
+  // If user has filtered his MRs somehow
+  var filtered = $list.children.length < setOfChanges.size
+  console.log('$list', $list);
+
   ![ ...setOfChanges ]
     .sort((a, b) => dir === 'asc' ? a - b : b - a)
     .forEach(count => {
-      $mergeRequests.append( ...listOfMRs.get(count).map(node => node.cloneNode(true)) )
+      $mergeRequests.append( ...listOfMRs.get(count).map(({ node }) => node.cloneNode(true)) )
     })
 
   $newList.append($mergeRequests)
