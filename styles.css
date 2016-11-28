@@ -2,36 +2,27 @@
   --margin: 3px;
 }
 
-.mrs-changes {
+.lrwr-changes {
   margin-left: var(--margin);
 }
 
-.mrs-changes::before {
+.lrwr-changes::before {
   content: '[';
 }
-.mrs-changes::after {
+.lrwr-changes::after {
   content: ']';
 }
 
-.mrs-github-added {
-  color: #55a532;
-  margin-right: var(--margin);
-}
-
-.mrs-github-removed {
-  color: #bd2c00;
-}
-
-.mrs-gitlab-added {
+.lrwr-added {
   color: #4a2;
   margin-right: var(--margin);
 }
 
-.mrs-gitlab-removed {
+.lrwr-removed {
   color: #d12f19;
 }
 
-.mrs-sort-link[disabled] {
+.lrwr-sort-link[disabled] {
   color: #ddd;
   pointer-events: none;
 }
