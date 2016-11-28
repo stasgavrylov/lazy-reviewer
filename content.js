@@ -2,7 +2,7 @@ var listOfMRs, setOfChanges, setOfIds
 
 function init(url, privateKey) {
   const { origin, pathname, searchParams } = new URL(url)
-  const [ page, projectName, ...rest ] = pathname.split('/').filter(e => e).reverse()
+  const [ page, project, namespace, ...rest ] = pathname.split('/').filter(e => e).reverse()
 
   // If user hasn't set his API key yet, prompt once again or shut down.
   if (!privateKey) {
@@ -27,55 +27,47 @@ function init(url, privateKey) {
     headers,
   }
 
-  fetch(`${origin}/api/v3/projects/`, options)
+  fetch(`${origin}/api/v3/projects/${namespace}%2F${project}/merge_requests?state=opened`, options)
   .then(data => {
     if (data.status !== 200) throw new Error(`Server responded with status ${data.status}`)
 
     return data.json()
   })
-  .then(projects => {
-    const projectId = projects.find(proj => proj.name == projectName).id
-    fetch(
-      `${origin}/api/v3/projects/${projectId}/merge_requests?state=opened`,
+  .then(json => {
+    const allChanges = json.map(({ id, iid, project_id }) => fetch(
+      `${origin}/api/v3/projects/${project_id}/merge_requests/${id}/changes`,
       options
     )
     .then(data => data.json())
-    .then(json => {
-      const allChanges = json.map(({ id, iid }) => fetch(
-        `${origin}/api/v3/projects/${projectId}/merge_requests/${id}/changes`,
-        options
-      )
-      .then(data => data.json())
-      .then(({ changes }) => getMergeUpdates(changes, iid)))
+    .then(({ changes }) => getMergeUpdates(changes, iid)))
 
-      Promise.all(allChanges)
-      .catch(function(err) {
-          console.error('Failed to get merge request changes:', err)
-          return allChanges
+    Promise.all(allChanges)
+    .catch(function(err) {
+        console.error('Failed to get merge request changes:', err)
+        return allChanges
+    })
+    .then(changes => {
+      changes.forEach(({ id, added, removed }) => {
+        if (setOfIds.has(id)) return
+
+        const $mrLink = $(`a[href$="merge_requests/${id}"]`)
+        if (!$mrLink) return
+
+        // Add [+ -] changes to MR link
+        $mrLink.append(buildDiffMarkup(added, removed))
+
+        // Save corresponding list item node for sorting
+        const $mrListItem = $mrLink.closest('.merge-request')
+        const total = added + removed
+
+        const mrArray = listOfMRs.has(total) ? listOfMRs.get(total) : []
+
+        listOfMRs.set(total, [ ...mrArray, { node: $mrListItem, id } ])
+        setOfChanges.add(total)
+        setOfIds.add(id)
       })
-      .then(changes => {
-        changes.forEach(({ id, added, removed }) => {
-          if (setOfIds.has(id)) return
 
-          const $mrLink = $(`a[href$="merge_requests/${id}"]`)
-          if (!$mrLink) return
-
-          // Add [+ -] changes to MR link
-          $mrLink.append(buildDiffMarkup(added, removed))
-
-          // Save corresponding list item node for sorting
-          const $mrListItem = $mrLink.closest('.merge-request')
-          const total = added + removed
-
-          const mrArray = listOfMRs.has(total) ? listOfMRs.get(total) : []
-
-          listOfMRs.set(total, [ ...mrArray, { node: $mrListItem, id } ])
-          setOfChanges.add(total)
-          setOfIds.add(id)
-        })
-
-        for (let $link of $$('.mrs-sort-link')) { $link.removeAttribute('disabled') }
-      })
+      for (let $link of $$('.mrs-sort-link')) { $link.removeAttribute('disabled') }
     })
   })
   .catch(err => { console.error('Failed to fetch projects list:', err) })
