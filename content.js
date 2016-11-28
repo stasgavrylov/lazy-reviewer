@@ -83,6 +83,90 @@ function init(url, privateKey) {
   insertSortLinks()
 }
 
+function initGitHub(url, privateKey) {
+  const { origin, pathname, searchParams } = new URL(url)
+  const [ page, projectName, ...rest ] = pathname.split('/').filter(e => e).reverse()
+
+  // If user hasn't set his API key yet, prompt once again or shut down.
+  if (!privateKey) {
+    privateKey = prompt(`You haven't provided ${origin} API key yet.`)
+    if (!privateKey) {
+      console.warn('No API key found for this host. LazyReviewer will not run.')
+      return
+    }
+  }
+
+  listOfMRs = new Map
+  setOfChanges = new Set
+  setOfIds = new Set
+
+  // Fetch merge requests info and diff description to MR list
+  const headers = new Headers
+        headers.append('Authorization', `token ${privateKey}`)
+  const options = {
+    method: 'GET',
+    mode: 'cors',
+    cache: 'default',
+    headers,
+  }
+
+  fetch(`https://api.github.com/repos/moment/momentjs.com/pulls`, options)
+  .then(data => {
+    if (data.status !== 200) throw new Error(`Server responded with status ${data.status}`)
+
+    return data.json()
+  })
+  .then(projects => {
+    console.log('projects', projects);
+    // const projectId = projects.find(proj => proj.name == projectName).id
+    // fetch(
+    //   `${origin}/api/v3/projects/${projectId}/merge_requests?state=opened`,
+    //   options
+    // )
+    // .then(data => data.json())
+    // .then(json => {
+    //   const allChanges = json.map(({ id, iid }) => fetch(
+    //     `${origin}/api/v3/projects/${projectId}/merge_requests/${id}/changes`,
+    //     options
+    //   )
+    //   .then(data => data.json())
+    //   .then(({ changes }) => getMergeUpdates(changes, iid)))
+
+    //   Promise.all(allChanges)
+    //   .catch(function(err) {
+    //       console.error('Failed to get merge request changes:', err)
+    //       return allChanges
+    //   })
+    //   .then(changes => {
+    //     changes.forEach(({ id, added, removed }) => {
+    //       if (setOfIds.has(id)) return
+
+    //       const $mrLink = $(`a[href$="merge_requests/${id}"]`)
+    //       if (!$mrLink) return
+
+    //       // Add [+ -] changes to MR link
+    //       $mrLink.append(buildDiffMarkup(added, removed))
+
+    //       // Save corresponding list item node for sorting
+    //       const $mrListItem = $mrLink.closest('.merge-request')
+    //       const total = added + removed
+
+    //       const mrArray = listOfMRs.has(total) ? listOfMRs.get(total) : []
+
+    //       listOfMRs.set(total, [ ...mrArray, { node: $mrListItem, id } ])
+    //       setOfChanges.add(total)
+    //       setOfIds.add(id)
+    //     })
+
+    //     for (let $link of $$('.mrs-sort-link')) { $link.removeAttribute('disabled') }
+    //   })
+    // })
+  })
+  .catch(err => { console.error('Failed to fetch projects list:', err) })
+
+  // insertSortLinks()
+}
+
 function insertSortLinks() {
   const $sortingMenu = $('.issues-filters .dropdown-menu-sort')
   const $sortingList = $sortingMenu.firstElementChild
@@ -215,7 +299,7 @@ chrome.runtime.onMessage.addListener(function({ url }, sender) {
   chrome.storage.local.set({ initialized: true }, function() {
     const { host } = new URL(url)
     chrome.storage.local.get(host, function({ [host]: key }) {
-      init(url, key)
+      initGitHub(url, key)
     })
   })
 })
