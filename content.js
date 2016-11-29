@@ -1,25 +1,42 @@
-var listOfMRs, setOfChanges, setOfIds
+var listOfPRs, setOfChanges, setOfIds
 
-function init(url, privateKey) {
-  const { origin, pathname, searchParams } = new URL(url)
+const utilsStorage = {
+  github: {
+    tokenHeader: 'Authorization',
+    getToken: getToken('github'),
+    insertSort: insertGitHubSort,
+    fetch: fetchGitHub,
+  },
+  gitlab: {
+    tokenHeader: 'PRIVATE-TOKEN',
+    getToken: getToken('gitlab'),
+    insertSort: insertGitLabSort,
+    fetch: fetchGitLab,
+  },
+}
+
+function init(url, privateKey, service) {
+  const { host, origin, pathname, searchParams } = new URL(url)
   const [ page, project, namespace, ...rest ] = pathname.split('/').filter(e => e).reverse()
 
   // If user hasn't set his API key yet, prompt once again or shut down.
   if (!privateKey) {
-    privateKey = prompt(`You haven't provided ${origin} API key yet.`)
+    privateKey = prompt(`You haven't provided ${host} API key yet.`)
     if (!privateKey) {
       console.warn('No API key found for this host. LazyReviewer will not run.')
       return
-    }
+    } else chrome.storage.local.set({ [host]: true })
   }
 
-  listOfMRs = new Map
+  const utils = utilsStorage[service]
+
+  listOfPRs = new Map
   setOfChanges = new Set
   setOfIds = new Set
 
   // Fetch merge requests info and diff description to MR list
   const headers = new Headers
-        headers.append('PRIVATE-TOKEN', privateKey)
+        headers.append(utils.tokenHeader, utils.getToken(privateKey))
   const options = {
     method: 'GET',
     mode: 'cors',
@@ -27,6 +44,11 @@ function init(url, privateKey) {
     headers,
   }
 
+  utils.fetch({ origin, namespace, project }, options)
+  utils.insertSort()
+}
+
+function fetchGitLab({ origin, namespace, project }, options) {
   fetch(`${origin}/api/v3/projects/${namespace}%2F${project}/merge_requests?state=opened`, options)
   .then(data => {
     if (data.status !== 200) throw new Error(`Server responded with status ${data.status}`)
@@ -44,7 +66,6 @@ function init(url, privateKey) {
     Promise.all(allChanges)
     .catch(function(err) {
         console.error('Failed to get merge request changes:', err)
-        return allChanges
     })
     .then(changes => {
       changes.forEach(({ id, added, removed }) => {
@@ -60,49 +81,21 @@ function init(url, privateKey) {
         const $mrListItem = $mrLink.closest('.merge-request')
         const total = added + removed
 
-        const mrArray = listOfMRs.has(total) ? listOfMRs.get(total) : []
+        const mrArray = listOfPRs.has(total) ? listOfPRs.get(total) : []
 
-        listOfMRs.set(total, [ ...mrArray, { node: $mrListItem, id } ])
+        listOfPRs.set(total, [ ...mrArray, { node: $mrListItem, id } ])
         setOfChanges.add(total)
         setOfIds.add(id)
       })
 
-      for (let $link of $$('.mrs-sort-link')) { $link.removeAttribute('disabled') }
+      for (let $link of $$('.lrwr-sort-link')) { $link.removeAttribute('disabled') }
     })
   })
   .catch(err => { console.error('Failed to fetch projects list:', err) })
-
-  insertGitLabSort()
 }
 
-function initGitHub(url, privateKey) {
-  const { origin, pathname, searchParams } = new URL(url)
-  const [ page, project, namespace, ...rest ] = pathname.split('/').filter(e => e).reverse()
-
-  // If user hasn't set his API key yet, prompt once again or shut down.
-  if (!privateKey) {
-    privateKey = prompt(`You haven't provided ${origin} API key yet.`)
-    if (!privateKey) {
-      console.warn('No API key found for this host. LazyReviewer will not run.')
-      return
-    }
-  }
-
-  listOfPRs = new Map
-  setOfChanges = new Set
-  setOfIds = new Set
-
-  // Fetch merge requests info and diff description to MR list
-  const headers = new Headers
-        headers.append('Authorization', `token ${privateKey}`)
-  const options = {
-    method: 'GET',
-    mode: 'cors',
-    cache: 'default',
-    headers,
-  }
-
-  fetch(`https://api.github.com/repos/${project}/${namespace}/pulls`, options)
+function fetchGitHub({ namespace, project }, options) {
+  fetch(`https://api.github.com/repos/${namespace}/${project}/pulls`, options)
   .then(data => {
     if (data.status !== 200) throw new Error(`Server responded with status ${data.status}`)
 
@@ -120,7 +113,6 @@ function initGitHub(url, privateKey) {
     Promise.all(allChanges)
     .catch(function(err) {
         console.error('Failed to get pull request changes:', err)
-        return allChanges
     })
     .then(changes => {
       changes.forEach(({ id, added, removed }) => {
@@ -147,8 +139,6 @@ function initGitHub(url, privateKey) {
     })
   })
   .catch(err => { console.error('Failed to fetch projects list:', err) })
-
-  insertGitHubSort()
 }
 
 function insertGitLabSort() {
@@ -159,112 +149,86 @@ function insertGitLabSort() {
   function changeCurrentSort(e) {
     e.preventDefault()
     $sortingButton.childNodes[2].textContent = this.textContent
-    sortMergeRequests(this.dataset.direction)
+    sortRequests('gitlab')(this.dataset.direction)
   }
 
-  const $lessLink = create('a', 'Less changes', {
-    href: '!#',
-    disabled: true,
-    class: 'lrwr-sort-link',
-    'data-direction': 'asc',
-  })
-  const $moreLink = create('a', 'More changes', {
-    href: '!#',
-    disabled: true,
-    class: 'lrwr-sort-link',
-    'data-direction': 'desc',
-  })
-
-  $lessLink.addEventListener('click', changeCurrentSort)
-  $moreLink.addEventListener('click', changeCurrentSort)
-
-  $sortingList.append($lessLink, $moreLink)
+  $sortingList.append(...buildSortLinks(changeCurrentSort))
 }
+
 function insertGitHubSort() {
   const $sortingList = [ ...$$('.table-list-filters .js-menu-container .js-navigation-open') ].pop()
 
   function changeCurrentSort(e) {
     e.preventDefault()
-    sortPullRequests(this.dataset.direction)
+    sortRequests('github')(this.dataset.direction)
   }
 
+  $sortingList.after(...buildSortLinks(changeCurrentSort, 'select-menu-item js-navigation-item js-navigation-open'))
+}
+
+function sortRequests(service) {
+  const selectors = {
+    'gitlab': {
+      list: '.mr-list',
+      links: '.merge-request-title-text > a',
+    },
+    'github': {
+      list: '.issues-listing .Box-body.js-navigation-container',
+      links: 'li a.Box-row-link.js-navigation-open',
+    }
+  }
+
+  return function (dir) {
+    const $requests = new DocumentFragment
+    const selector = selectors[service]
+
+    const $list = $(selector.list)
+    const $newList = $list.cloneNode()
+
+    // If user has filtered his MRs somehow
+    const filtered = $list.children.length < setOfIds.size
+    const filteredIds = filtered &&
+      [ ...$list.querySelectorAll(selector.links) ]
+        .map(node => +node.href.split('/').pop())
+
+    ![ ...setOfChanges ]
+      .sort((a, b) => dir === 'asc' ? a - b : b - a)
+      .forEach(count => {
+        const items = listOfPRs.get(count)
+          .map(({ node, id }) => {
+            if (filtered) {
+              return filteredIds.includes(id) ? node.cloneNode(true) : null
+            }
+
+            return node.cloneNode(true)
+          })
+          .filter(node => node)
+
+        $requests.append( ...items )
+      })
+    $newList.append($requests)
+    $list.replaceWith($newList)
+  }
+}
+
+function buildSortLinks(handler, className) {
   const $lessLink = create('a', 'Less changes', {
     href: '!#',
     disabled: true,
-    class: 'lrwr-sort-link select-menu-item js-navigation-item js-navigation-open',
+    class: 'lrwr-sort-link ' + className,
     'data-direction': 'asc',
   })
   const $moreLink = create('a', 'More changes', {
     href: '!#',
     disabled: true,
-    class: 'lrwr-sort-link select-menu-item js-navigation-item js-navigation-open',
+    class: 'lrwr-sort-link ' + className,
     'data-direction': 'desc',
   })
 
-  $lessLink.addEventListener('click', changeCurrentSort)
-  $moreLink.addEventListener('click', changeCurrentSort)
+  $lessLink.addEventListener('click', handler)
+  $moreLink.addEventListener('click', handler)
 
-  $sortingList.after($lessLink, $moreLink)
-}
-
-function sortMergeRequests(dir) {
-  const $mergeRequests = new DocumentFragment
-  const $list = $('.mr-list')
-  const $newList = $list.cloneNode()
-
-  // If user has filtered his MRs somehow
-  const filtered = $list.children.length < setOfIds.size
-  const filteredIds = filtered &&
-    [ ...$list.querySelectorAll('.merge-request-title-text > a') ]
-      .map(node => +node.href.split('/').pop())
-
-  ![ ...setOfChanges ]
-    .sort((a, b) => dir === 'asc' ? a - b : b - a)
-    .forEach(count => {
-      const items = listOfMRs.get(count)
-        .map(({ node, id }) => {
-          if (filtered) {
-            return filteredIds.includes(id) ? node.cloneNode(true) : null
-          }
-
-          return node.cloneNode(true)
-        })
-        .filter(node => node)
-
-      $mergeRequests.append( ...items )
-    })
-  $newList.append($mergeRequests)
-  $list.replaceWith($newList)
-}
-
-function sortPullRequests(dir) {
-  const $pullRequests = new DocumentFragment
-  const $list = $('.issues-listing .Box-body.js-navigation-container')
-  const $newList = $list.cloneNode()
-
-  // If user has filtered his PRs somehow
-  const filtered = $list.children.length < setOfIds.size
-  const filteredIds = filtered &&
-    [ ...$list.querySelectorAll('li a.Box-row-link.js-navigation-open') ]
-      .map(node => +node.href.split('/').pop())
-
-  ![ ...setOfChanges ]
-    .sort((a, b) => dir === 'asc' ? a - b : b - a)
-    .forEach(count => {
-      const items = listOfPRs.get(count)
-        .map(({ node, id }) => {
-          if (filtered) {
-            return filteredIds.includes(id) ? node.cloneNode(true) : null
-          }
-
-          return node.cloneNode(true)
-        })
-        .filter(node => node)
-
-      $pullRequests.append( ...items )
-    })
-  $newList.append($pullRequests)
-  $list.replaceWith($newList)
+  return [ $lessLink, $moreLink ]
 }
 
 
@@ -275,6 +239,19 @@ function sortPullRequests(dir) {
 
 const $ = document.querySelector.bind(document)
 const $$ = document.querySelectorAll.bind(document)
+
+function getToken(service) {
+  return function(key) {
+    switch(service) {
+      case 'github':
+        return `token ${key}`
+      case 'gitlab':
+        return key
+      default:
+        return ''
+    }
+  }
+}
 
 // Simple node building
 function create(tag, content, options) {
@@ -306,15 +283,12 @@ function getMergeUpdates(changes, id) {
 
 // Couple of spans to display diffs
 function buildDiffMarkup(added, removed) {
-  const $f = new DocumentFragment
-
   const $c = create('span', '', { class: 'lrwr-changes' })
   const $added = create('span', `+${added}`, { class: 'lrwr-added' })
   const $removed = create('span', `-${removed}`, { class: 'lrwr-removed' })
 
   $c.append($added, $removed)
-  $f.append($c)
-  return $f
+  return $c
 }
 
 // Calculate number of added and removed lines
@@ -338,8 +312,10 @@ function occurrences(string, subString) {
 chrome.runtime.onMessage.addListener(function({ url }, sender) {
   chrome.storage.local.set({ initialized: true }, function() {
     const { host } = new URL(url)
+    const service = host.includes('github') ? 'github' : 'gitlab'
+
     chrome.storage.local.get(host, function({ [host]: key }) {
-      initGitHub(url, key)
+      init(url, key, service)
     })
   })
 })
