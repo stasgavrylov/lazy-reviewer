@@ -26,6 +26,6 @@
   ],
   "browser_action": {
     "default_popup": "popup.html",
-    "default_title": "Add private API key"
+    "default_title": "Add API token"
   }
 }

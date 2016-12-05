@@ -3,21 +3,39 @@
   <head>
     <title>Git Repo API keys</title>
     <link rel="stylesheet" href="popup.css">
+    <script defer src="popup.js"></script>
   </head>
   <body>
-    <p class="info">Please, provide your private key to allow GitLab API access. If you're using custom server, enter it's hostname in corresponding field.</p>
-    <label for="gitlab-key" class="text-label">GitLab API key <span>( <a href="https://gitlab.com/profile/personal_access_tokens" target="_blank" id="goto-profile">get one</a> )</span></label>
-    <p>
-      <input tabindex=1 type="text" id="gitlab-key" required="" pattern="[\w\-]{8,}">
-      <button id="set-gitlab-key" tabindex=1>Set</button>
-    </p>
-    <input type="checkbox" id="show-domain" class="show-domain"><label for="show-domain">Set custom GitLab domain</label>
-    <div>
-      <label for="gitlab-domain" class="text-label">Custom GitLab domain</label>
+    <p class="info">Please, provide your private key to allow GitHub/GitLab API access. If using custom domain, enter the hostname first.</p>
+    <input type="radio" id="github" class="radio-github" value="github" name="service" checked>
+    <label for="github">
+      GitHub
+    </label>
+    <input type="radio" id="gitlab" class="radio-gitlab" value="gitlab" name="service">
+    <label for="gitlab">
+      GitLab
+    </label>
+    <div class="credentials github-credentials">
       <p>
-        <input tabindex=1 type="text" id="gitlab-domain" placeholder="gitlab.xxxxx.com" pattern="gitlab\.\w+\.com" required>
+        <label for="github-domain" class="text-label">GitHub domain</label>
+        <input class="domain text-field" data-service="github" id="github-domain" required value="github.com">
+      </p>
+      <p>
+        <label for="github-key" class="text-label">GitHub API key <span>( <a href="https://github.com/settings/tokens/new" target="_blank" id="goto-github">get one</a> )</span></label>
+        <input class="key text-field" id="github-key" required>
+        <button class="keysetter" id="set-github-key" data-service="github">Set</button>
       </p>
     </div>
-    <script src="popup.js"></script>
+    <div class="credentials gitlab-credentials">
+      <p>
+        <label for="gitlab-domain" class="text-label">GitLab domain</label>
+        <input class="domain text-field" data-service="gitlab" id="gitlab-domain" required value="gitlab.com">
+      </p>
+      <p>
+        <label for="gitlab-key" class="text-label">GitLab API key <span>( <a href="https://gitlab.com/profile/personal_access_tokens" target="_blank" id="goto-gitlab">get one</a> )</span></label>
+        <input class="key text-field" id="gitlab-key" required>
+        <button class="keysetter" id="set-gitlab-key" data-service="gitlab">Set</button>
+      </p>
+    </div>
   </body>
 </html>

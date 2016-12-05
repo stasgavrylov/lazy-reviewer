@@ -312,9 +312,8 @@ function occurrences(string, subString) {
 chrome.runtime.onMessage.addListener(function({ url }, sender) {
   chrome.storage.local.set({ initialized: true }, function() {
     const { host } = new URL(url)
-    const service = host.includes('github') ? 'github' : 'gitlab'
 
-    chrome.storage.local.get(host, function({ [host]: key }) {
+    chrome.storage.local.get(host, function({ [host]: { key, service } }) {
       init(url, key, service)
     })
   })
