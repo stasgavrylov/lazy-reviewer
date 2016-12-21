@@ -59,7 +59,7 @@ function setUrlFilters() {
 }
 
 
-// If user adds new
+// If user adds new hosts
 chrome.storage.onChanged.addListener(function({ hosts }, namespace) {
   if (namespace == 'local' && hosts) updateUrlFilters()
 });
