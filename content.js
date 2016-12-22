@@ -255,7 +255,7 @@ class GitHubService extends Service {
 
     const changeCurrentSort = (e) => {
       e.preventDefault()
-      this.sortRequests(e.target.dataset.direction)
+      this.sortRequests(e.target.dataset.order)
     }
 
     $sortingList.after(...this.buildSortLinks(changeCurrentSort, 'select-menu-item js-navigation-item js-navigation-open'))
