@@ -2,7 +2,7 @@ Lazy Reviewer
 ==========
 > For those who don't like to review lots of code, or vice versa.
 
-**Lazy Reviewer** is a Chrome extension that adds information on merge request diffs to PR section on GitHub and GitLab. It also allows you to sort all PRs by the amount of changes.
+**Lazy Reviewer** is a Chrome extension that adds information on merge request diffs to PR section on GitHub and GitLab. It also allows you to sort all PRs by the amount of changes. Available from [Chrome Web Store](https://chrome.google.com/webstore/detail/lazy-reviewer/bhalbgkloajkkfflgafbaghiccfkdknf).
 
 GitHub:
 ![](http://i.imgur.com/49a67ZP.gif)
@@ -18,13 +18,9 @@ Those who are ready for the biggest challenges can always use "More changes" sor
 Installation
 -----
 
-Since this extension is not yet published to Chrome Web Store, installation process is a bit cumbersome:
+Install from [Chrome Web Store](https://chrome.google.com/webstore/detail/lazy-reviewer/bhalbgkloajkkfflgafbaghiccfkdknf).
 
-1. Clone the repo or download and unzip the file.
-2. Open Chrome's Extensions or `chrome://extensions` tab
-3. Enable the ***Developer mode*** checkbox
-4. Click "Load unpacked extension..." and select the folder which you've saved the extension to.
-5. Proceed to **Getting Started** section.
+Don't forget to take a look at **Getting Started** section.
 
 
 Getting Started
@@ -45,6 +41,8 @@ Acknowledgements
 I'd like to thank [@rynarud](https://dribbble.com/rynarud) for drawing an awesome icon for this extension.
 
 ![](https://github.com/stasgavrylov/lazy-reviewer/raw/master/icons/lr128.png)
+
+Also, huge thanks to [@shvaikalesh](https://github.com/shvaikalesh) for thorough code review.
 
 
 License
