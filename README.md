@@ -4,7 +4,11 @@ Lazy Reviewer
 
 **Lazy Reviewer** is a Chrome extension that adds information on merge request diffs to PR section on GitHub and GitLab. It also allows you to sort all PRs by the amount of changes.
 
+GitHub:
 ![](http://i.imgur.com/49a67ZP.gif)
+
+GitLab:
+![](http://i.imgur.com/6G34p1V.gif)
 
 Everyone knows that feeling when your colleague asks you to review his "tiny PR", but there's no way to find out it's actual size unless you're already reviewing it. Fortunately, this awesome extension eliminates the problem and allows you to prevent misinformation by displaying actual diff for every pull request in your project.
 
