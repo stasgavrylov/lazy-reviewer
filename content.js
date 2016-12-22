@@ -13,13 +13,19 @@ class Service {
     const [ project, namespace ] = pathname.split('/').filter(e => e).slice(0, -1).reverse()
 
     this.host = host
-    this.checkPrivateKey()
+
+    try {
+      this.checkPrivateKey()
+    } catch(err) {
+      console.error(err.message)
+      return
+    }
 
     this.fetch({ namespace, project }).then(diffs => {
       this.displayDiffs(diffs)
       this.insertSortLinks()
       this.unlockUI()
-    }, err => console.error('Failed to get merge request changes:', err))
+    }, err => console.error('Failed to get merge request changes. LazyReviewer will not run.'))
   }
 
   checkPrivateKey() {
@@ -46,7 +52,7 @@ class Service {
   buildDiffMarkup(added, removed) {
     const $diff = el`<span class="lrwr-changes"></span>`
     const $added = el`<span class="lrwr-added">+${added}</span>`
-    const $removed = el`<span class="lrwr-removed">+${removed}</span>`
+    const $removed = el`<span class="lrwr-removed">-${removed}</span>`
 
     $diff.firstElementChild.append($added, $removed)
     return $diff
@@ -158,7 +164,8 @@ class GitLabService extends Service {
       return Promise.all(allChanges)
     }
     catch (err) {
-      console.error('Failed to fetch data for LazyReviewer:', err)
+      console.error(err.message)
+      throw err
     }
   }
 
@@ -237,8 +244,9 @@ class GitHubService extends Service {
 
       return Promise.all(allChanges)
     }
-    catch (e) {
-      console.error('Failed to fetch data for LazyReviewer:', err)
+    catch (err) {
+      console.error(err.message)
+      throw err
     }
   }
 
@@ -285,7 +293,7 @@ function getService(service) {
 // Simple node building
 function el(strings, ...values) {
   const html = strings.reduce((html, str, i) => {
-    html += values[i] ? `${str + values[i]}` : str;
+    html += i in values ? `${str + values[i]}` : str;
     return html
   }, '')
   return document.createRange().createContextualFragment(html)
