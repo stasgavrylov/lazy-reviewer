@@ -3,7 +3,11 @@
 chrome.runtime.onInstalled.addListener(function() {
   chrome.storage.local.get('hosts', function({ hosts }) {
     if (hosts) return
-    chrome.storage.local.set({ 'hosts': ['github.com', 'gitlab.com'] })
+    chrome.storage.local.set({
+      'hosts': ['github.com', 'gitlab.com'],
+      'github.com': { service: 'github' },
+      'gitlab.com': { service: 'gitlab' },
+    })
   })
 })
 

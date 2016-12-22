@@ -1,25 +1,25 @@
 class Service {
-  constructor() {
+  constructor(url, privateKey) {
     this.listOfPRs = new Map
     this.setOfChanges = new Set
     this.setOfIds = new Set
+    this.privateKey = privateKey
+
+    this.init(url)
   }
 
-  init(url, privateKey) {
-    this.privateKey = privateKey
+  init(url) {
+    const { host, pathname } = new URL(url)
+    const [ project, namespace ] = pathname.split('/').filter(e => e).slice(0, -1).reverse()
+
+    this.host = host
     this.checkPrivateKey()
 
-    const { host, origin, pathname, searchParams } = new URL(url)
-    const [ page, project, namespace, ...rest ] = pathname.split('/').filter(e => e).reverse()
-    const options = {
-      method: 'GET',
-      headers: this.getRequestHeaders(),
-    }
-    this.fetch({ origin, namespace, project, options }).then(diffs => {
+    this.fetch({ namespace, project }).then(diffs => {
       this.displayDiffs(diffs)
       this.insertSortLinks()
       this.unlockUI()
-    })
+    }, err => console.error('Failed to get merge request changes:', err))
   }
 
   checkPrivateKey() {
@@ -28,23 +28,28 @@ class Service {
 
   // If user hasn't set his API key yet, prompt once again or shut down.
   promptKey() {
-    this.privateKey = prompt(`You haven't provided ${host} API key yet.`)
-    if (!this.privateKey) {
+    this.privateKey = prompt(`You haven't provided ${this.host} API key yet.`)
+    if (this.privateKey)
+      chrome.storage.local.set({ [this.host]: true })
+    else
       throw new Error('No API key found for this host. LazyReviewer will not run.')
-    } else chrome.storage.local.set({ [host]: true })
   }
 
-  getRequestHeaders() {
-    return { [this.getTokenHeader()]: this.getToken() }
+  getFetchOptions() {
+    return {
+      headers: {
+        [this.authHeader]: this.authToken,
+      }
+    }
   }
 
   buildDiffMarkup(added, removed) {
-    const $c = create('span', '', { class: 'lrwr-changes' })
-    const $added = create('span', `+${added}`, { class: 'lrwr-added' })
-    const $removed = create('span', `-${removed}`, { class: 'lrwr-removed' })
+    const $diff = el`<span class="lrwr-changes"></span>`
+    const $added = el`<span class="lrwr-added">+${added}</span>`
+    const $removed = el`<span class="lrwr-removed">+${removed}</span>`
 
-    $c.append($added, $removed)
-    return $c
+    $diff.firstElementChild.append($added, $removed)
+    return $diff
   }
 
   // Add [+ -] changes to PR link
@@ -78,23 +83,13 @@ class Service {
   }
 
   buildSortLinks(handler, className) {
-    const $lessLink = create('a', 'Less changes', {
-      href: '!#',
-      disabled: true,
-      class: 'lrwr-sort-link ' + className,
-      'data-direction': 'asc',
-    })
-    const $moreLink = create('a', 'More changes', {
-      href: '!#',
-      disabled: true,
-      class: 'lrwr-sort-link ' + className,
-      'data-direction': 'desc',
-    })
+    const $less = el`<a href=# disabled class="lrwr-sort-link ${className}" data-order=asc>Less changes</a>`
+    const $more = el`<a href=# disabled class="lrwr-sort-link ${className}" data-order=desc>More changes</a>`
 
-    $lessLink.addEventListener('click', handler)
-    $moreLink.addEventListener('click', handler)
+    $less.firstElementChild.addEventListener('click', handler)
+    $more.firstElementChild.addEventListener('click', handler)
 
-    return [$lessLink, $moreLink]
+    return [$less, $more]
   }
 
   sortRequests(dir) {
@@ -134,8 +129,8 @@ class Service {
 }
 
 class GitLabService extends Service {
-  constructor() {
-    super()
+  constructor(...args) {
+    super(...args)
 
     this.selectors = {
       parentLink: '.merge-request',
@@ -144,23 +139,25 @@ class GitLabService extends Service {
     }
   }
 
-  async fetch({ namespace, project, origin, options }) {
+  async fetch({ namespace, project }) {
+    const options = this.getFetchOptions()
+
     try {
-      const response = await fetch(`${origin}/api/v3/projects/${namespace}%2F${project}/merge_requests?state=opened`, options)
+      const response = await fetch(`/api/v3/projects/${namespace}%2F${project}/merge_requests?state=opened`, options)
 
       if (!response.ok) throw new Error(`Server responded with status ${response.status}`)
 
       const projectData = await response.json()
 
       const allChanges = projectData.map(async ({ id, iid, project_id }) => {
-        const response = await fetch(`${origin}/api/v3/projects/${project_id}/merge_requests/${id}/changes`, options)
+        const response = await fetch(`/api/v3/projects/${project_id}/merge_requests/${id}/changes`, options)
         const { changes } = await response.json()
         return this.getMergeUpdates(changes, iid)
       })
 
       return Promise.all(allChanges)
     }
-    catch (e) {
+    catch (err) {
       console.error('Failed to fetch data for LazyReviewer:', err)
     }
   }
@@ -189,7 +186,7 @@ class GitLabService extends Service {
     const changeCurrentSort = (e) => {
       e.preventDefault()
       $sortingButton.childNodes[2].textContent = e.target.textContent
-      this.sortRequests(e.target.dataset.direction)
+      this.sortRequests(e.target.dataset.order)
     }
 
     $sortingList.append(...this.buildSortLinks(changeCurrentSort))
@@ -199,18 +196,18 @@ class GitLabService extends Service {
     return $(`a[href$='merge_requests/${id}']`)
   }
 
-  getToken() {
+  get authToken() {
     return this.privateKey
   }
 
-  getTokenHeader() {
+  get authHeader() {
     return 'PRIVATE-TOKEN'
   }
 }
 
 class GitHubService extends Service {
-  constructor() {
-    super()
+  constructor(...args) {
+    super(...args)
 
     this.selectors = {
       parentLink: '.js-navigation-item',
@@ -219,7 +216,9 @@ class GitHubService extends Service {
     }
   }
 
-  async fetch({ namespace, project, options }) {
+  async fetch({ namespace, project }) {
+    const options = this.getFetchOptions()
+
     try {
       const response = await fetch(`https://api.github.com/repos/${namespace}/${project}/pulls`, options)
       if (!response.ok) throw new Error(`Server responded with status ${response.status}`)
@@ -258,11 +257,11 @@ class GitHubService extends Service {
     return $(`a[href$='pull/${id}']`)
   }
 
-  getToken() {
+  get authToken() {
     return `token ${this.privateKey}`
   }
 
-  getTokenHeader() {
+  get authHeader() {
     return 'Authorization'
   }
 }
@@ -277,22 +276,19 @@ const $$ = document.querySelectorAll.bind(document)
 function getService(service) {
   switch(service) {
     case 'gitlab':
-      return new GitLabService
+      return GitLabService
     case 'github':
-      return new GitHubService
+      return GitHubService
   }
 }
 
 // Simple node building
-function create(tag, content, options) {
-  const $el = document.createElement(tag)
-  $el.textContent = content
-
-  Object.entries(options).forEach(([key, value]) => {
-    $el.setAttribute(key, value)
-  })
-
-  return $el
+function el(strings, ...values) {
+  const html = strings.reduce((html, str, i) => {
+    html += values[i] ? `${str + values[i]}` : str;
+    return html
+  }, '')
+  return document.createRange().createContextualFragment(html)
 }
 
 // Calculate number of added and removed lines
@@ -318,7 +314,8 @@ chrome.runtime.onMessage.addListener(function({ url }, sender) {
     const { host } = new URL(url)
 
     chrome.storage.local.get(host, function({ [host]: { key, service } }) {
-      getService(service).init(url, key)
+      const Service = getService(service)
+      new Service(url, key)
     })
   })
 })
