@@ -15,7 +15,8 @@ class Service {
       method: 'GET',
       headers: this.getRequestHeaders(),
     }
-    this.fetch({ origin, namespace, project, options }).then(() => {
+    this.fetch({ origin, namespace, project, options }).then(diffs => {
+      this.displayDiffs(diffs)
       this.insertSortLinks()
       this.unlockUI()
     })
@@ -143,28 +144,25 @@ class GitLabService extends Service {
     }
   }
 
-  fetch({ namespace, project, origin, options }) {
-    return fetch(`${origin}/api/v3/projects/${namespace}%2F${project}/merge_requests?state=opened`, options)
-      .then(response => {
-        if (!response.ok) throw new Error(`Server responded with status ${response.status}`)
+  async fetch({ namespace, project, origin, options }) {
+    try {
+      const response = await fetch(`${origin}/api/v3/projects/${namespace}%2F${project}/merge_requests?state=opened`, options)
 
-        return response.json()
-      })
-      .then(json => {
-        const allChanges = json.map(({ id, iid, project_id }) => fetch(
-          `${origin}/api/v3/projects/${project_id}/merge_requests/${id}/changes`,
-          options
-        )
-        .then(data => data.json())
-        .then(({ changes }) => this.getMergeUpdates(changes, iid)))
+      if (!response.ok) throw new Error(`Server responded with status ${response.status}`)
 
-        return Promise.all(allChanges)
-          .catch(function(err) {
-              console.error('Failed to get merge request changes:', err)
-          })
-          .then(changes => this.displayDiffs(changes))
+      const projectData = await response.json()
+
+      const allChanges = projectData.map(async ({ id, iid, project_id }) => {
+        const response = await fetch(`${origin}/api/v3/projects/${project_id}/merge_requests/${id}/changes`, options)
+        const { changes } = await response.json()
+        return this.getMergeUpdates(changes, iid)
       })
-      .catch(err => { console.error('Failed to fetch projects list:', err) })
+
+      return Promise.all(allChanges)
+    }
+    catch (e) {
+      console.error('Failed to fetch data for LazyReviewer:', err)
+    }
   }
 
   // Calculating diffs for merge request
@@ -221,29 +219,28 @@ class GitHubService extends Service {
     }
   }
 
-  fetch({ namespace, project, options }) {
-    return fetch(`https://api.github.com/repos/${namespace}/${project}/pulls`, options)
-    .then(response => {
+  async fetch({ namespace, project, options }) {
+    try {
+      const response = await fetch(`https://api.github.com/repos/${namespace}/${project}/pulls`, options)
       if (!response.ok) throw new Error(`Server responded with status ${response.status}`)
 
-      return response.json()
-    })
-    .then(pulls => {
-      const allChanges = pulls.map(it => fetch(it.url, options)
-        .then(data => data.json())
-        .then(({ additions, deletions, number }) => ({
+      const projectData = await response.json()
+
+      const allChanges = projectData.map(async pr => {
+        const response = await fetch(pr.url, options)
+        const { additions, deletions, number } = await response.json()
+        return {
           added: additions,
           removed: deletions,
           id: number,
-        })))
+        }
+      })
 
       return Promise.all(allChanges)
-        .catch(function(err) {
-            console.error('Failed to get pull request changes:', err)
-        })
-        .then(changes => this.displayDiffs(changes))
-    })
-    .catch(err => { console.error('Failed to fetch projects list:', err) })
+    }
+    catch (e) {
+      console.error('Failed to fetch data for LazyReviewer:', err)
+    }
   }
 
   insertSortLinks() {
