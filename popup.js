@@ -40,7 +40,7 @@ const tokenUrls = {
   gitlab: {
     default: 'https://gitlab.com/profile/personal_access_tokens',
     custom: host => `https://${host}/profile/personal_access_tokens`,
-  }
+  },
 }
 
 function updateDomain(target) {
