@@ -33,19 +33,19 @@ document.addEventListener('click', function({ target }) {
 
 
 const tokenUrls = {
-  'github': {
+  github: {
     default: 'https://github.com/settings/tokens/new',
-    custom(host) { return `https://${host}/settings/tokens/new` },
+    custom: host => `https://${host}/settings/tokens/new`,
   },
-  'gitlab': {
+  gitlab: {
     default: 'https://gitlab.com/profile/personal_access_tokens',
-    custom(host) { return `https://${host}/profile/personal_access_tokens` },
-  }
+    custom: host => `https://${host}/profile/personal_access_tokens`,
+  },
 }
 
 function updateDomain(target) {
   const { value } = target
-  const service = target.dataset.service
+  const { service } = target.dataset
   const $tokenLink = $(`#goto-${service}`)
   const urls = tokenUrls[service]
 
