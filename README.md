@@ -40,7 +40,7 @@ Acknowledgements
 -----
 I'd like to thank [@rynarud](https://dribbble.com/rynarud) for drawing an awesome icon for this extension.
 
-![](https://github.com/stasgavrylov/lazy-reviewer/raw/master/icons/lr128.png)
+![](http://i.imgur.com/95BKHkX.png)
 
 Also, huge thanks to [@shvaikalesh](https://github.com/shvaikalesh) for thorough code review.
 
