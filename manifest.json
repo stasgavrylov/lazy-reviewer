@@ -3,7 +3,7 @@
   "author": "Stas Gavrylov",
   "name": "Lazy Reviewer",
   "description": "This extension adds an option to sort merge requests by the size of their changes",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "permissions": [
     "tabs",
     "storage",
