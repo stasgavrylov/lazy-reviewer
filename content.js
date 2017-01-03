@@ -66,8 +66,7 @@ class Service {
   // Save corresponding list item node for sorting
   saveLinkNode(id, total) {
     const $listEntry = this.prLink.closest(this.selectors.parentLink)
-
-    const pullsArray = this.listOfPRs.has(total) ? this.listOfPRs.get(total) : []
+    const pullsArray = this.listOfPRs.get(total) || []
 
     this.listOfPRs.set(total, [ ...pullsArray, { node: $listEntry, id } ])
     this.setOfChanges.add(total)
