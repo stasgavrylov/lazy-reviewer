@@ -29,8 +29,8 @@
     "default_title": "Add API token"
   },
   "icons": {
-    "16": "icons/lr16.png",
-    "48": "icons/lr48.png",
-    "128": "icons/lr128.png"
+    "16": "icons/lr_16.png",
+    "48": "icons/lr_48.png",
+    "128": "icons/lr_128.png"
   }
 }
