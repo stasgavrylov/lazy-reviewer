@@ -97,7 +97,7 @@ class Service {
     return [$less, $more]
   }
 
-  sortRequests(dir) {
+  sortRequests(byOrder) {
     const $requests = new DocumentFragment
 
     const $list = $(this.selectors.list)
@@ -110,7 +110,7 @@ class Service {
         .map(node => +node.href.split('/').pop())
 
     ![ ...this.setOfChanges ]
-      .sort((a, b) => dir === 'asc' ? a - b : b - a)
+      .sort(byOrder)
       .forEach(count => {
         const items = this.listOfPRs.get(count)
           .map(({ node, id }) => {
@@ -192,7 +192,7 @@ class GitLabService extends Service {
     const changeCurrentSort = (e) => {
       e.preventDefault()
       $sortingButton.childNodes[2].textContent = e.target.textContent
-      this.sortRequests(e.target.dataset.order)
+      this.sortRequests(by(e.target.dataset.order))
     }
 
     $sortingList.append(...this.buildSortLinks(changeCurrentSort))
@@ -254,7 +254,7 @@ class GitHubService extends Service {
 
     const changeCurrentSort = (e) => {
       e.preventDefault()
-      this.sortRequests(e.target.dataset.order)
+      this.sortRequests(by(e.target.dataset.order))
     }
 
     $sortingList.after(...this.buildSortLinks(changeCurrentSort, 'select-menu-item js-navigation-item js-navigation-open'))
@@ -279,6 +279,7 @@ class GitHubService extends Service {
 
 const $ = document.querySelector.bind(document)
 const $$ = document.querySelectorAll.bind(document)
+const by = order => (a, b) => order == 'asc' ? a - b : b - a
 
 function getService(service) {
   switch(service) {
