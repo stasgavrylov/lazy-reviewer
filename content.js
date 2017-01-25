@@ -25,7 +25,7 @@ class Service {
       this.displayDiffs(diffs)
       this.insertSortLinks()
       this.unlockUI()
-    }, err => console.error('Failed to get merge request changes. LazyReviewer will not run.'))
+    }, err => console.error(`Failed to get merge request changes. LazyReviewer will not run. ${err}`))
   }
 
   checkPrivateKey() {
@@ -146,26 +146,17 @@ class GitLabService extends Service {
 
   async fetch({ namespace, project }) {
     const options = this.getFetchOptions()
+    const response = await fetch(`/api/v3/projects/${namespace}%2F${project}/merge_requests?state=opened`, options)
+    if (!response.ok) throw new Error(`Server responded with status ${response.status}`)
 
-    try {
-      const response = await fetch(`/api/v3/projects/${namespace}%2F${project}/merge_requests?state=opened`, options)
+    const projectData = await response.json()
+    const allChanges = projectData.map(async ({ id, iid, project_id }) => {
+      const response = await fetch(`/api/v3/projects/${project_id}/merge_requests/${id}/changes`, options)
+      const { changes } = await response.json()
+      return this.getMergeUpdates(changes, iid)
+    })
 
-      if (!response.ok) throw new Error(`Server responded with status ${response.status}`)
-
-      const projectData = await response.json()
-
-      const allChanges = projectData.map(async ({ id, iid, project_id }) => {
-        const response = await fetch(`/api/v3/projects/${project_id}/merge_requests/${id}/changes`, options)
-        const { changes } = await response.json()
-        return this.getMergeUpdates(changes, iid)
-      })
-
-      return Promise.all(allChanges)
-    }
-    catch (err) {
-      console.error(err.message)
-      throw err
-    }
+    return Promise.all(allChanges)
   }
 
   // Calculating diffs for merge request
@@ -224,29 +215,21 @@ class GitHubService extends Service {
 
   async fetch({ namespace, project }) {
     const options = this.getFetchOptions()
+    const response = await fetch(`https://api.github.com/repos/${namespace}/${project}/pulls`, options)
+    if (!response.ok) throw new Error(`Server responded with status ${response.status}`)
 
-    try {
-      const response = await fetch(`https://api.github.com/repos/${namespace}/${project}/pulls`, options)
-      if (!response.ok) throw new Error(`Server responded with status ${response.status}`)
+    const projectData = await response.json()
+    const allChanges = projectData.map(async pr => {
+      const response = await fetch(pr.url, options)
+      const { additions, deletions, number } = await response.json()
+      return {
+        added: additions,
+        removed: deletions,
+        id: number,
+      }
+    })
 
-      const projectData = await response.json()
-
-      const allChanges = projectData.map(async pr => {
-        const response = await fetch(pr.url, options)
-        const { additions, deletions, number } = await response.json()
-        return {
-          added: additions,
-          removed: deletions,
-          id: number,
-        }
-      })
-
-      return Promise.all(allChanges)
-    }
-    catch (err) {
-      console.error(err.message)
-      throw err
-    }
+    return Promise.all(allChanges)
   }
 
   insertSortLinks() {
