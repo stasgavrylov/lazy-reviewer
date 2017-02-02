@@ -10,8 +10,13 @@ chrome.runtime.onInstalled.addListener(function() {
     })
   })
 })
+// Because of GitLab's nature we have to reinitialize the script
+// in some scenarios
+chrome.runtime.onMessage.addListener(function({ init }, { url }) {
+  init && initialize({ url, transitionType: true })
+})
 
-const initialize = function(data) {
+function initialize (data) {
   if (!data.transitionType && data.url.includes('gitlab')) return
 
   chrome.storage.local.set({ initialized: false })
@@ -24,7 +29,7 @@ const initialize = function(data) {
       if (initialized) return clearInterval(interval)
 
       // Give up after 10 tries
-      if (failedInitializationAttempts > 10) {
+      if (failedInitializationAttempts > 5) {
         console.error('Unable to initialize extension. Try to reload the page')
         return clearInterval(interval)
       }
@@ -36,7 +41,7 @@ const initialize = function(data) {
 
       failedInitializationAttempts++
     })
-  }, 500)
+  }, 1000)
 }
 
 // Create event url filters to specify pages where we want to run the extension at
@@ -59,8 +64,8 @@ function setUrlFilters() {
     chrome.webNavigation.onHistoryStateUpdated.addListener(initialize, hostFilters)
     chrome.webNavigation.onCompleted.addListener(initialize, hostFilters)
   })
-
 }
+
 
 
 // If user adds new hosts
