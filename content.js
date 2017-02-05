@@ -200,6 +200,19 @@ class GitLabService extends Service {
   get authHeader() {
     return 'PRIVATE-TOKEN'
   }
+
+  unlockUI() {
+    super.unlockUI();
+    // Add handlers to "Merge Requests" links to reinitialize correctly
+    [...document.querySelectorAll('a[title="Merge Requests"]')].slice(1).forEach(link => {
+      if (link.getAttribute('data-lrwr')) return
+      link.addEventListener('click', function reinit() {
+        chrome.runtime.sendMessage({ init: true })
+        link.removeEventListener('click', reinit)
+      })
+      link.setAttribute('data-lrwr', '')
+    })
+  }
 }
 
 class GitHubService extends Service {
@@ -302,6 +315,8 @@ function occurrences(string, subString) {
  */
 chrome.runtime.onMessage.addListener(function({ url }, sender) {
   chrome.storage.local.set({ initialized: true }, function() {
+    if (!url) return
+
     const { host } = new URL(url)
 
     chrome.storage.local.get(host, function({ [host]: { key, service } }) {
