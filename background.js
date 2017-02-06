@@ -19,30 +19,31 @@ chrome.runtime.onMessage.addListener(function({ init }, { url }) {
 function initialize (data) {
   if (!data.transitionType && data.url.includes('gitlab')) return
 
-  chrome.storage.local.set({ initialized: false })
+  chrome.storage.local.set({ initialized: false }, function() {
+    // Sometimes tab message is sent when the page has not loaded yet,
+    // several tries provide more stable initialization
+    var failedInitializationAttempts = 0
+    const interval = setInterval(function() {
+      chrome.storage.local.get('initialized', function({ initialized }) {
+        if (initialized) return clearInterval(interval)
 
-  // Sometimes tab message is sent when the page has not loaded yet,
-  // several tries provide more stable initialization
-  var failedInitializationAttempts = 0
-  const interval = setInterval(function() {
-    chrome.storage.local.get('initialized', function({ initialized }) {
-      if (initialized) return clearInterval(interval)
+        if (failedInitializationAttempts > 5) {
+          console.error('Unable to initialize extension. Try to reload the page')
+          return clearInterval(interval)
+        }
 
-      // Give up after 10 tries
-      if (failedInitializationAttempts > 5) {
-        console.error('Unable to initialize extension. Try to reload the page')
-        return clearInterval(interval)
-      }
+        chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+          if (!tabs[0]) return
+          chrome.tabs.sendMessage(tabs[0].id, data)
+        })
 
-      chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-        if (!tabs[0]) return
-        chrome.tabs.sendMessage(tabs[0].id, data)
+        failedInitializationAttempts++
       })
-
-      failedInitializationAttempts++
-    })
-  }, 1000)
+    }, 1000)
+  })
 }
+
+
 
 // Create event url filters to specify pages where we want to run the extension at
 const PR_PAGE_REGEX = '/(pulls|merge_requests)(\/|\\?.*)?$' // re2 syntax
