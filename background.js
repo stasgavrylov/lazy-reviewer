@@ -19,27 +19,34 @@ chrome.runtime.onMessage.addListener(function({ init }, { url }) {
 function initialize (data) {
   if (!data.transitionType && data.url.includes('gitlab')) return
 
-  chrome.storage.local.set({ initialized: false }, function() {
-    // Sometimes tab message is sent when the page has not loaded yet,
-    // several tries provide more stable initialization
-    var failedInitializationAttempts = 0
-    const interval = setInterval(function() {
-      chrome.storage.local.get('initialized', function({ initialized }) {
-        if (initialized) return clearInterval(interval)
+  const { host } = new URL(data.url)
+  chrome.storage.local.get(host, function({ [host]: { key } }) {
+    // If user has not provided API key yet, we try to init only once
+    // to avoid multiple key prompt popups
+    const MAX_INIT_ATTEMPTS = key == null ? 1 : 5;
 
-        if (failedInitializationAttempts > 5) {
-          console.error('Unable to initialize extension. Try to reload the page')
-          return clearInterval(interval)
-        }
+    chrome.storage.local.set({ initialized: false }, function() {
+      // Sometimes tab message is sent when the page has not loaded yet,
+      // several tries provide more stable initialization
+      var failedInitializationAttempts = 0
+      const interval = setInterval(function() {
+        chrome.storage.local.get('initialized', function({ initialized }) {
+          if (initialized) return clearInterval(interval)
 
-        chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-          if (!tabs[0]) return
-          chrome.tabs.sendMessage(tabs[0].id, data)
+          if (failedInitializationAttempts >= MAX_INIT_ATTEMPTS) {
+            console.error('Unable to initialize extension. Try to reload the page')
+            return clearInterval(interval)
+          }
+
+          chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+            if (!tabs[0]) return
+            chrome.tabs.sendMessage(tabs[0].id, data)
+          })
+
+          failedInitializationAttempts++
         })
-
-        failedInitializationAttempts++
-      })
-    }, 1000)
+      }, 1000)
+    })
   })
 }
 
