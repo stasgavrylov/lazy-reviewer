@@ -50,12 +50,12 @@ class Service {
   }
 
   buildDiffMarkup(added, removed) {
-    const $diff = el`<span class="lrwr-changes"></span>`
-    const $added = el`<span class="lrwr-added">+${added}</span>`
-    const $removed = el`<span class="lrwr-removed">-${removed}</span>`
-
-    $diff.firstElementChild.append($added, $removed)
-    return $diff
+    return el`
+      <span class="lrwr-changes">
+        <span class="lrwr-added">+${added}</span>
+        <span class="lrwr-removed">-${removed}</span>
+      </span>
+    `
   }
 
   // Add [+ -] changes to PR link
@@ -91,8 +91,8 @@ class Service {
     const $less = el`<a href=# disabled class="lrwr-sort-link ${className}" data-order=asc>Less changes</a>`
     const $more = el`<a href=# disabled class="lrwr-sort-link ${className}" data-order=desc>More changes</a>`
 
-    $less.firstElementChild.addEventListener('click', handler)
-    $more.firstElementChild.addEventListener('click', handler)
+    $less.addEventListener('click', handler)
+    $more.addEventListener('click', handler)
 
     return [$less, $more]
   }
@@ -287,12 +287,10 @@ function getService(service) {
 }
 
 // Simple node building
-function el(strings, ...values) {
-  const html = strings.reduce((html, str, i) => {
-    html += i in values ? `${str + values[i]}` : str;
-    return html
-  }, '')
-  return document.createRange().createContextualFragment(html)
+function el() {
+  const tmp = document.createElement('template')
+  tmp.innerHTML = String.raw(...arguments)
+  return tmp.firstElementChild
 }
 
 // Calculate number of added and removed lines
