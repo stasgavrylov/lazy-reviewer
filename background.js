@@ -17,8 +17,6 @@ chrome.runtime.onMessage.addListener(function({ init }, { url }) {
 })
 
 function initialize (data) {
-  if (!data.transitionType && data.url.includes('gitlab')) return
-
   const { host } = new URL(data.url)
   chrome.storage.local.get(host, function({ [host]: { key } }) {
     // If user has not provided API key yet, we try to init only once

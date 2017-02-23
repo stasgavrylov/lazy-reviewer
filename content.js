@@ -17,7 +17,7 @@ class Service {
     try {
       this.checkPrivateKey()
     } catch(err) {
-      console.error(err.message)
+      handleError(err.message)
       return
     }
 
@@ -25,7 +25,7 @@ class Service {
       this.displayDiffs(diffs)
       this.insertSortLinks()
       this.unlockUI()
-    }, err => console.error(`Failed to get merge request changes. LazyReviewer will not run. ${err}`))
+    }, err => handleError(`Failed to get merge request changes. LazyReviewer will not run. ${err}`))
   }
 
   checkPrivateKey() {
@@ -289,8 +289,8 @@ function getService(service) {
 // Simple node building
 function el() {
   const tmp = document.createElement('template')
-  tmp.innerHTML = String.raw(...arguments)
-  return tmp.firstElementChild
+  tmp.innerHTML = String.raw(...arguments).replace(/>\s+</g,'><')
+  return tmp.content.firstElementChild
 }
 
 // Calculate number of added and removed lines
@@ -306,6 +306,18 @@ function occurrences(string, subString) {
     else break
   }
   return n
+}
+
+function handleError(error) {
+  const errorWarning = el`
+    <div class="lrwr-notification">
+      <p>Error</p>
+      ${error}
+    </div>`
+  document.body.append(errorWarning)
+  setTimeout(() => {
+    errorWarning.remove()
+  }, 4000)
 }
 
 /*
