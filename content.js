@@ -146,12 +146,14 @@ class GitLabService extends Service {
 
   async fetch({ namespace, project }) {
     const options = this.getFetchOptions()
-    const response = await fetch(`/api/v3/projects/${namespace}%2F${project}/merge_requests?state=opened`, options)
+    const { status: versionStatus } = await fetch(`/api/v3/version`, options)
+    const apiVersion = versionStatus !== 200 ? 'v4' : 'v3';
+    const response = await fetch(`/api/${apiVersion}/projects/${namespace}%2F${project}/merge_requests?state=opened`, options)
     if (!response.ok) throw new Error(`Server responded with status ${response.status}`)
 
     const projectData = await response.json()
     const allChanges = projectData.map(async ({ id, iid, project_id }) => {
-      const response = await fetch(`/api/v3/projects/${project_id}/merge_requests/${id}/changes`, options)
+      const response = await fetch(`/api/${apiVersion}/projects/${project_id}/merge_requests/${iid}/changes`, options)
       const { changes } = await response.json()
       return this.getMergeUpdates(changes, iid)
     })
